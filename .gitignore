@@ -11,3 +11,8 @@ dist/
 *.swp
 
 .vscode/
+
+
+eval
+extra
+pretrained

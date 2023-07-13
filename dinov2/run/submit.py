@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 from typing import List, Optional
+from pdb import set_trace as pb
 
 import submitit
 
@@ -95,6 +96,7 @@ def submit_jobs(task_class, args, name: str):
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     executor = submitit.AutoExecutor(folder=args.output_dir, slurm_max_num_timeout=30)
+    executor = submitit.DebugExecutor(folder=args.output_dir)
 
     kwargs = {}
     if args.use_volta32:
@@ -114,8 +116,12 @@ def submit_jobs(task_class, args, name: str):
     )
     executor.update_parameters(name=name, **executor_params)
 
+    args.learning_rates = [0.001]
+
     task = task_class(args)
     job = executor.submit(task)
+    job.done()
+    # pb()
 
     logger.info(f"Submitted job_id: {job.job_id}")
     str_output_dir = os.path.abspath(args.output_dir).replace("%j", str(job.job_id))

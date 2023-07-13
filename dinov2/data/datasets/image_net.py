@@ -14,6 +14,8 @@ import numpy as np
 
 from .extended import ExtendedVisionDataset
 
+from pdb import set_trace as pb
+from pathlib import Path
 
 logger = logging.getLogger("dinov2")
 _Target = int
@@ -27,8 +29,8 @@ class _Split(Enum):
     @property
     def length(self) -> int:
         split_lengths = {
-            _Split.TRAIN: 1_281_167,
-            _Split.VAL: 50_000,
+            _Split.TRAIN: 9469, # 1_281_167,
+            _Split.VAL: 3925,
             _Split.TEST: 100_000,
         }
         return split_lengths[self]
@@ -39,10 +41,10 @@ class _Split(Enum):
     def get_image_relpath(self, actual_index: int, class_id: Optional[str] = None) -> str:
         dirname = self.get_dirname(class_id)
         if self == _Split.TRAIN:
-            basename = f"{class_id}_{actual_index}"
+            basename = [f"{class_id}_{actual_index}", f"ILSVRC2012_val_{actual_index:08d}"]
         else:  # self in (_Split.VAL, _Split.TEST):
-            basename = f"ILSVRC2012_{self.value}_{actual_index:08d}"
-        return os.path.join(dirname, basename + ".JPEG")
+            basename = [f"ILSVRC2012_{self.value}_{actual_index:08d}"]
+        return [os.path.join(dirname, x + ".JPEG") for x in basename]
 
     def parse_image_relpath(self, image_relpath: str) -> Tuple[str, int]:
         assert self != _Split.TEST
@@ -140,9 +142,11 @@ class ImageNet(ExtendedVisionDataset):
         class_id = self.get_class_id(index)
 
         image_relpath = self.split.get_image_relpath(actual_index, class_id)
-        image_full_path = os.path.join(self.root, image_relpath)
-        with open(image_full_path, mode="rb") as f:
-            image_data = f.read()
+        image_full_path = [os.path.join(self.root, x) for x in image_relpath]
+        for i in range(len(image_full_path)):
+            if Path(image_full_path[i]).exists():
+                with open(image_full_path[i], mode="rb") as f:
+                    image_data = f.read()
         return image_data
 
     def get_target(self, index: int) -> Optional[Target]:

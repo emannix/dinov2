@@ -27,6 +27,7 @@ from dinov2.eval.setup import setup_and_build_model
 from dinov2.eval.utils import ModelWithIntermediateLayers, evaluate
 from dinov2.logging import MetricLogger
 
+from pdb import set_trace as pb
 
 logger = logging.getLogger("dinov2")
 
@@ -138,7 +139,7 @@ def get_args_parser(
         test_dataset_strs=None,
         epochs=10,
         batch_size=128,
-        num_workers=8,
+        num_workers=0,
         epoch_length=1250,
         save_checkpoint_frequency=20,
         eval_period_iterations=1250,
@@ -192,6 +193,7 @@ class LinearClassifier(nn.Module):
         self.use_n_blocks = use_n_blocks
         self.use_avgpool = use_avgpool
         self.num_classes = num_classes
+        torch.manual_seed(0)
         self.linear = nn.Linear(out_dim, num_classes)
         self.linear.weight.data.normal_(mean=0.0, std=0.01)
         self.linear.bias.data.zero_()
@@ -354,7 +356,7 @@ def eval_linear(
 
         losses = {f"loss_{k}": nn.CrossEntropyLoss()(v, labels) for k, v in outputs.items()}
         loss = sum(losses.values())
-
+        pb()
         # compute the gradients
         optimizer.zero_grad()
         loss.backward()
@@ -497,14 +499,31 @@ def run_eval_linear(
         transform=train_transform,
     )
     training_num_classes = len(torch.unique(torch.Tensor(train_dataset.get_targets().astype(int))))
-    sampler_type = SamplerType.SHARDED_INFINITE
-    # sampler_type = SamplerType.INFINITE
+    # sampler_type = SamplerType.SHARDED_INFINITE
+    sampler_type = SamplerType.INFINITE
 
     n_last_blocks_list = [1, 4]
     n_last_blocks = max(n_last_blocks_list)
     autocast_ctx = partial(torch.cuda.amp.autocast, enabled=True, dtype=autocast_dtype)
+    
+    # torch.set_default_dtype(torch.float32)
+    # torch.manual_seed(0)
+    # dummy = torch.rand((1,3,224,224)).cuda()
+    # model = model.float()
+    # model(dummy)
+    # pb()
+
     feature_model = ModelWithIntermediateLayers(model, n_last_blocks, autocast_ctx)
     sample_output = feature_model(train_dataset[0][0].unsqueeze(0).cuda())
+
+    # model2 = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
+    # model2.cuda()
+    # dummy = torch.rand((1,3,224,224)).cuda()
+    # model(dummy)
+    # model2(dummy)
+    # feature_model(dummy)
+    # pb()
+
 
     linear_classifiers, optim_param_groups = setup_linear_classifiers(
         sample_output,
@@ -523,12 +542,12 @@ def run_eval_linear(
         dataset=train_dataset,
         batch_size=batch_size,
         num_workers=num_workers,
-        shuffle=True,
+        shuffle=False, # True
         seed=seed,
         sampler_type=sampler_type,
         sampler_advance=start_iter,
         drop_last=True,
-        persistent_workers=True,
+        persistent_workers=False,
     )
     val_data_loader = make_eval_data_loader(val_dataset_str, batch_size, num_workers, val_metric_type)
 
@@ -594,6 +613,12 @@ def run_eval_linear(
 
 def main(args):
     model, autocast_dtype = setup_and_build_model(args)
+    model2 = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
+    model2.cuda()
+    # dummy = torch.rand((1,3,224,224)).cuda()
+    # model(dummy)
+    # model2(dummy)
+    model = model2
     run_eval_linear(
         model=model,
         output_dir=args.output_dir,

@@ -8,7 +8,9 @@ from typing import Sequence
 
 import torch
 from torchvision import transforms
-
+import numpy as np
+import random
+from pdb import set_trace as pb
 
 class GaussianBlur(transforms.RandomApply):
     """
@@ -53,24 +55,55 @@ def make_normalize_transform(
 
 # This roughly matches torchvision's preset for classification training:
 #   https://github.com/pytorch/vision/blob/main/references/classification/presets.py#L6-L44
-def make_classification_train_transform(
-    *,
-    crop_size: int = 224,
-    interpolation=transforms.InterpolationMode.BICUBIC,
-    hflip_prob: float = 0.5,
-    mean: Sequence[float] = IMAGENET_DEFAULT_MEAN,
-    std: Sequence[float] = IMAGENET_DEFAULT_STD,
-):
-    transforms_list = [transforms.RandomResizedCrop(crop_size, interpolation=interpolation)]
-    if hflip_prob > 0.0:
-        transforms_list.append(transforms.RandomHorizontalFlip(hflip_prob))
-    transforms_list.extend(
-        [
-            MaybeToTensor(),
-            make_normalize_transform(mean=mean, std=std),
-        ]
-    )
-    return transforms.Compose(transforms_list)
+class make_classification_train_transform():
+
+    def __init__(
+        self,
+        *,
+        crop_size: int = 224,
+        interpolation=transforms.InterpolationMode.BICUBIC,
+        hflip_prob: float = 0.5,
+        mean: Sequence[float] = IMAGENET_DEFAULT_MEAN,
+        std: Sequence[float] = IMAGENET_DEFAULT_STD,
+    ):
+        transforms_list = [transforms.RandomResizedCrop(crop_size, interpolation=interpolation)]
+        if hflip_prob > 0.0:
+            transforms_list.append(transforms.RandomHorizontalFlip(hflip_prob))
+        transforms_list.extend(
+            [
+                MaybeToTensor(),
+                make_normalize_transform(mean=mean, std=std),
+            ]
+        )
+        self.transforms = transforms.Compose(transforms_list)
+        self.static_seed = 0
+
+    def __call__(self, image):
+        if self.static_seed is not None:
+            torch.manual_seed(self.static_seed)
+            np.random.seed(self.static_seed)
+            random.seed(self.static_seed)
+        t = self.transforms(image)
+        return t
+
+# def make_classification_train_transform(
+#     *,
+#     crop_size: int = 224,
+#     interpolation=transforms.InterpolationMode.BICUBIC,
+#     hflip_prob: float = 0.5,
+#     mean: Sequence[float] = IMAGENET_DEFAULT_MEAN,
+#     std: Sequence[float] = IMAGENET_DEFAULT_STD,
+# ):
+#     transforms_list = [transforms.RandomResizedCrop(crop_size, interpolation=interpolation)]
+#     if hflip_prob > 0.0:
+#         transforms_list.append(transforms.RandomHorizontalFlip(hflip_prob))
+#     transforms_list.extend(
+#         [
+#             MaybeToTensor(),
+#             make_normalize_transform(mean=mean, std=std),
+#         ]
+#     )
+#     return transforms.Compose(transforms_list)
 
 
 # This matches (roughly) torchvision's preset for classification evaluation:

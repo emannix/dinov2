@@ -15,6 +15,7 @@ from dinov2.data import DatasetWithEnumeratedTargets, SamplerType, make_data_loa
 import dinov2.distributed as distributed
 from dinov2.logging import MetricLogger
 
+from pdb import set_trace as pb
 
 logger = logging.getLogger("dinov2")
 
@@ -35,6 +36,10 @@ class ModelWithIntermediateLayers(nn.Module):
         self.feature_model.eval()
         self.n_last_blocks = n_last_blocks
         self.autocast_ctx = autocast_ctx
+
+        # torch.manual_seed(0)
+        # sample = torch.rand((1, 3, 224, 224)).cuda()
+        # self.feature_model(sample)
 
     def forward(self, images):
         with torch.inference_mode():
